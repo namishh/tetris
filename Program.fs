@@ -86,16 +86,77 @@ let createGameState(): GameState =
     let board = emptyBoard()
     { board = board; rng = rng; currentPiece = initialPiece; currentPosition = (0, 0); nextPiece = nextPiece; score = 0; level = 1; gameOver = false }
 
+// :DRAW STATE
+let drawBoard (board: Board) =
+    printf "┏"
+    for _ in 0 .. (Array2D.length2 board - 1) do
+        printf "━━"
+    printfn "┓"
+    
+    for y in 0 .. (Array2D.length1 board - 1) do
+        printf "┃"
+        for x in 0 .. (Array2D.length2 board - 1) do
+            match board.[y, x] with
+            | Empty -> printf "  "
+            | Filled color -> printf "%s%s%s" (colorToAnsi color) (blockToChar Real) (colorToAnsi Reset)
+        printfn "┃"
+    
+    printf "┗"
+    for _ in 0 .. (Array2D.length2 board - 1) do
+        printf "━━"
+    printfn "┛"
 
-// :GAMELOOP
+let drawActivePiece(state : GameState) = 
+    let posX, posY = state.currentPosition
+    for blockX, blockY in state.currentPiece.Blocks do
+        let x = posX + blockX
+        let y = posY + blockY
+
+        if y < 20 && y >= 0 && x < 10 && x >= 0 then
+            System.Console.SetCursorPosition(x * 2 + 1, y + 1) 
+            printf "%s%s%s" (colorToAnsi state.currentPiece.Color) (blockToChar Real) (colorToAnsi Reset)
+
+let drawGameInfo (state: GameState) =
+    let boardHeight = Array2D.length1 state.board
+    System.Console.SetCursorPosition(0, boardHeight + 2)
+    printfn ""
+    printfn "Level: %d" state.level
+    printfn "Score: %d" state.score
+    
+    printfn "Next Piece:"
+    printf "%s" (colorToAnsi state.nextPiece.Color)
+    
+    let minX = state.nextPiece.Blocks |> List.map fst |> List.min
+    let maxX = state.nextPiece.Blocks |> List.map fst |> List.max
+    let minY = state.nextPiece.Blocks |> List.map snd |> List.min
+    let maxY = state.nextPiece.Blocks |> List.map snd |> List.max
+    
+    for y in minY .. maxY do
+        for x in minX .. maxX do
+            if state.nextPiece.Blocks |> List.contains (x, y) then
+                printf "%s" (blockToChar Real)
+            else
+                printf "  "
+        printfn ""
+    
+    printf "%s" (colorToAnsi Reset)
+let drawGameState (state: GameState) =
+    System.Console.SetCursorPosition(0, 0)
+    drawBoard state.board
+    drawActivePiece state
+    drawGameInfo state
+    System.Console.Out.Flush()
 
 let rec gameLoop (state: GameState) = 
-    System.Console.Clear()
-    System.Threading.Thread.Sleep(100)
+    drawGameState state
+    
+    System.Threading.Thread.Sleep(400)
     gameLoop state
 
 [<EntryPoint>]
 let main argv =
+    System.Console.CursorVisible <- false
+    System.Console.Clear()
     let initial = createGameState()
     gameLoop initial
     0
