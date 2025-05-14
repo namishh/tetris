@@ -1,7 +1,4 @@
-﻿open System.Threading
-
-
-type BlockChar =
+﻿type BlockChar =
     | Real
     | Ghost
 
@@ -32,6 +29,20 @@ let colorToAnsi = function
 
 type Tetrimino = { Name: string; Blocks: (int * int) list; Color: Color }
 
+type Cell = Empty | Filled of Color
+type Board = Cell[,]
+
+type GameState = {
+  board: Board
+  rng: System.Random
+  currentPiece: Tetrimino
+  currentPosition: (int * int)
+  nextPiece: Tetrimino
+  score: int
+  level: int
+  gameOver: bool
+}
+
 let tetriminos = [
     { Name = "I"; Blocks = [(0,0); (1,0); (2,0); (3,0)]; Color = Cyan }
     { Name = "O"; Blocks = [(0,0); (1,0); (0,1); (1,1)]; Color = Yellow }
@@ -58,27 +69,33 @@ let printTetrimino (tetrimino: Tetrimino) =
         printfn ""
     printfn ""
 
-type Cell = Empty | Filled of Color
-type Board = Cell[,]
 
-type GameState = {
-  board: Board
-}
 
-let rec gameLoop(tl: Tetrimino list) index = 
+// :GAMESTATE
+let emptyBoard(): Board =
+    Array2D.init 20 10 (fun _ _ -> Empty)
+
+let randomTetrimino (rng: System.Random): Tetrimino =
+    let index = rng.Next(0, List.length tetriminos)
+    List.item index tetriminos
+
+let createGameState(): GameState =
+    let rng = System.Random()
+    let initialPiece = randomTetrimino rng
+    let nextPiece = randomTetrimino rng
+    let board = emptyBoard()
+    { board = board; rng = rng; currentPiece = initialPiece; currentPosition = (0, 0); nextPiece = nextPiece; score = 0; level = 1; gameOver = false }
+
+
+// :GAMELOOP
+
+let rec gameLoop (state: GameState) = 
     System.Console.Clear()
-    let tetrimino = tl.[index]
-
-    printTetrimino tetrimino
-
-    Thread.Sleep(500)
-
-    let nextIndex = (index + 1) % tetriminos.Length
-    
-    gameLoop tetriminos nextIndex
+    System.Threading.Thread.Sleep(100)
+    gameLoop state
 
 [<EntryPoint>]
 let main argv =
-    gameLoop tetriminos 0
-
-    0 
+    let initial = createGameState()
+    gameLoop initial
+    0
