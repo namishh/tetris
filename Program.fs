@@ -106,19 +106,17 @@ let drawBoard (board: Board) =
         printf "━━"
     printfn "┛"
 
-let drawActivePiece(state : GameState) = 
+let drawActivePiece (state: GameState) = 
     let posX, posY = state.currentPosition
     for blockX, blockY in state.currentPiece.Blocks do
         let x = posX + blockX
         let y = posY + blockY
-
         if y < 20 && y >= 0 && x < 10 && x >= 0 then
-            System.Console.SetCursorPosition(x * 2 + 1, y + 1) 
-            printf "%s%s%s" (colorToAnsi state.currentPiece.Color) (blockToChar Real) (colorToAnsi Reset)
+            printf "\x1b[%d;%dH%s%s%s" (y + 2) (x * 2 + 2) (colorToAnsi state.currentPiece.Color) (blockToChar Real) (colorToAnsi Reset)
 
 let drawGameInfo (state: GameState) =
     let boardHeight = Array2D.length1 state.board
-    System.Console.SetCursorPosition(0, boardHeight + 2)
+    printf "\x1b[%d;%dH" (boardHeight + 3) 1
     printfn ""
     printfn "Level: %d" state.level
     printfn "Score: %d" state.score
@@ -155,6 +153,7 @@ let rec gameLoop (state: GameState) =
 
 [<EntryPoint>]
 let main argv =
+    System.Console.OutputEncoding <- System.Text.Encoding.UTF8
     System.Console.CursorVisible <- false
     System.Console.Clear()
     let initial = createGameState()
