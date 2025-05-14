@@ -86,34 +86,6 @@ let createGameState(): GameState =
     let board = emptyBoard()
     { board = board; rng = rng; currentPiece = initialPiece; currentPosition = (0, 0); nextPiece = nextPiece; score = 0; level = 1; gameOver = false }
 
-// :DRAW STATE
-let drawBoard (board: Board) =
-    printf "┏"
-    for _ in 0 .. (Array2D.length2 board - 1) do
-        printf "━━"
-    printfn "┓"
-    
-    for y in 0 .. (Array2D.length1 board - 1) do
-        printf "┃"
-        for x in 0 .. (Array2D.length2 board - 1) do
-            match board.[y, x] with
-            | Empty -> printf "  "
-            | Filled color -> printf "%s%s%s" (colorToAnsi color) (blockToChar Real) (colorToAnsi Reset)
-        printfn "┃"
-    
-    printf "┗"
-    for _ in 0 .. (Array2D.length2 board - 1) do
-        printf "━━"
-    printfn "┛"
-
-let drawActivePiece (state: GameState) = 
-    let posX, posY = state.currentPosition
-    for blockX, blockY in state.currentPiece.Blocks do
-        let x = posX + blockX
-        let y = posY + blockY
-        if y < 20 && y >= 0 && x < 10 && x >= 0 then
-            printf "\x1b[%d;%dH%s%s%s" (y + 2) (x * 2 + 2) (colorToAnsi state.currentPiece.Color) (blockToChar Real) (colorToAnsi Reset)
-
 let drawGameInfo (state: GameState) =
     let boardHeight = Array2D.length1 state.board
     printf "\x1b[%d;%dH" (boardHeight + 3) 1
@@ -138,13 +110,42 @@ let drawGameInfo (state: GameState) =
         printfn ""
     
     printf "%s" (colorToAnsi Reset)
+
+let drawBoard (state: GameState) =
+    let board = state.board
+    let posX, posY = state.currentPosition
+    
+    printf "┏"
+    for _ in 0 .. (Array2D.length2 board - 1) do
+        printf "━━"
+    printfn "┓"
+    
+    for y in 0 .. (Array2D.length1 board - 1) do
+        printf "┃"
+        for x in 0 .. (Array2D.length2 board - 1) do
+            let isActivePiece = 
+                state.currentPiece.Blocks 
+                |> List.exists (fun (blockX, blockY) -> 
+                    posX + blockX = x && posY + blockY = y)
+            
+            if isActivePiece then
+                printf "%s%s%s" (colorToAnsi state.currentPiece.Color) (blockToChar Real) (colorToAnsi Reset)
+            else
+                match board.[y, x] with
+                | Empty -> printf "  "
+                | Filled color -> printf "%s%s%s" (colorToAnsi color) (blockToChar Real) (colorToAnsi Reset)
+        printfn "┃"
+    
+    printf "┗"
+    for _ in 0 .. (Array2D.length2 board - 1) do
+        printf "━━"
+    printfn "┛"
+
 let drawGameState (state: GameState) =
     System.Console.SetCursorPosition(0, 0)
-    drawBoard state.board
-    drawActivePiece state
+    drawBoard state
     drawGameInfo state
     System.Console.Out.Flush()
-
 let rec gameLoop (state: GameState) = 
     drawGameState state
     
