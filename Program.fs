@@ -26,21 +26,22 @@ let colorToAnsi = function
     | Orange -> "\x1b[38;5;208m"
     | Reset -> "\x1b[0m"
 
-
 type Tetrimino = { Name: string; Blocks: (int * int) list; Color: Color }
 
 type Cell = Empty | Filled of Color
 type Board = Cell[,]
 
 type GameState = {
-  board: Board
-  rng: System.Random
-  currentPiece: Tetrimino
-  currentPosition: (int * int)
-  nextPiece: Tetrimino
-  score: int
-  level: int
-  gameOver: bool
+    board: Board
+    rng: System.Random
+    lines: int
+    currentPiece: Tetrimino
+    currentPosition: (int * int)
+    nextPiece: Tetrimino
+    score: int
+    level: int
+    gameOver: bool
+    pieceHeld: Tetrimino option  
 }
 
 let tetriminos = [
@@ -69,9 +70,6 @@ let printTetrimino (tetrimino: Tetrimino) =
         printfn ""
     printfn ""
 
-
-
-// :GAMESTATE
 let emptyBoard(): Board =
     Array2D.init 20 10 (fun _ _ -> Empty)
 
@@ -83,33 +81,9 @@ let createGameState(): GameState =
     let rng = System.Random()
     let initialPiece = randomTetrimino rng
     let nextPiece = randomTetrimino rng
+    let heldPiece = Some (randomTetrimino rng)  // Initialize pieceHeld with a random Tetrimino
     let board = emptyBoard()
-    { board = board; rng = rng; currentPiece = initialPiece; currentPosition = (0, 0); nextPiece = nextPiece; score = 0; level = 1; gameOver = false }
-
-let drawGameInfo (state: GameState) =
-    let boardHeight = Array2D.length1 state.board
-    printf "\x1b[%d;%dH" (boardHeight + 3) 1
-    printfn ""
-    printfn "Level: %d" state.level
-    printfn "Score: %d" state.score
-    
-    printfn "Next Piece:"
-    printf "%s" (colorToAnsi state.nextPiece.Color)
-    
-    let minX = state.nextPiece.Blocks |> List.map fst |> List.min
-    let maxX = 4 
-    let minY = state.nextPiece.Blocks |> List.map snd |> List.min
-    let maxY = 2
-    
-    for y in minY .. maxY do
-        for x in minX .. maxX do
-            if state.nextPiece.Blocks |> List.contains (x, y) then
-                printf "%s" (blockToChar Real)
-            else
-                printf "  "
-        printfn ""
-    
-    printf "%s" (colorToAnsi Reset)
+    { board = board; rng = rng; currentPiece = initialPiece; lines = 0; currentPosition = (3, 0); nextPiece = nextPiece; score = 0; level = 1; gameOver = false; pieceHeld = heldPiece }
 
 let drawBoard (state: GameState) =
     let board = state.board
@@ -141,13 +115,59 @@ let drawBoard (state: GameState) =
         printf "━━"
     printfn "┛"
 
+let pieceDisplayLines (piece: Tetrimino) =
+    let blocks = piece.Blocks |> Set.ofList
+    [ for y in 0 .. 1 do
+        let line =
+            [ for x in 0 .. 3 do
+                if blocks.Contains (x, y) then
+                    colorToAnsi piece.Color + blockToChar Real + colorToAnsi Reset
+                else
+                    "  " ]
+            |> String.concat ""
+        yield line ]
+
+let drawBox title content x y =
+    System.Console.SetCursorPosition(x, y)
+    printfn "┏━━%s━━┓" title
+    for line in content do
+        System.Console.SetCursorPosition(x, System.Console.CursorTop)
+        printf "┃%s ┃" line
+        printfn ""
+    System.Console.SetCursorPosition(x, System.Console.CursorTop)
+    printfn "┗━━━━━━━━━┛"
+
 let drawGameState (state: GameState) =
     System.Console.SetCursorPosition(0, 0)
     drawBoard state
-    drawGameInfo state
+
+    let infoX = 24  
+
+    let nextY = 0
+    let nextContent = pieceDisplayLines state.nextPiece
+    drawBox "after" nextContent infoX nextY
+
+    let heldY = nextY + 4
+    let heldContent = 
+        match state.pieceHeld with
+        | Some piece -> pieceDisplayLines piece  
+        | None -> ["        "; "        "]  
+    drawBox "saved" heldContent infoX heldY
+
+    let linesY = heldY + 4  
+    let linesContent = [sprintf "%-8d" state.lines] 
+    drawBox "lines" linesContent infoX linesY
+
+    let levelY = linesY + 3  
+    let levelContent = [sprintf "%-8d" state.level]
+    drawBox "level" levelContent infoX levelY
+
+    let scoreY = levelY + 3  
+    let scoreContent = [sprintf "%-8d" state.score]
+    drawBox "score" scoreContent infoX scoreY
+
     System.Console.Out.Flush()
 
-// collision hadngling
 let collides (board: Board) (piece: Tetrimino) (row, col) =
     piece.Blocks 
     |> List.exists (fun (blockX, blockY) -> 
@@ -179,7 +199,7 @@ let tick (state: GameState) =
                 board
             ) state.board       
 
-        let startPosition = (4, 0) // Center top of the board
+        let startPosition = (4, 0)
         { state with currentPosition = startPosition
                      currentPiece = newPiece
                      nextPiece = newNextPiece
