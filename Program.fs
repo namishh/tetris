@@ -44,13 +44,13 @@ type GameState = {
 }
 
 let tetriminos = [
-    { Name = "I"; Blocks = [(0,0); (1,0); (2,0); (3,0)]; Color = Cyan }
-    { Name = "O"; Blocks = [(0,0); (1,0); (0,1); (1,1)]; Color = Yellow }
-    { Name = "T"; Blocks = [(0,0); (1,0); (2,0); (1,1)]; Color = Purple }
-    { Name = "S"; Blocks = [(1,0); (2,0); (0,1); (1,1)]; Color = Green }
-    { Name = "Z"; Blocks = [(0,0); (1,0); (1,1); (2,1)]; Color = Red }
-    { Name = "J"; Blocks = [(0,0); (0,1); (1,1); (2,1)]; Color = Blue }
-    { Name = "L"; Blocks = [(2,0); (0,1); (1,1); (2,1)]; Color = Orange }
+    { Name = "I"; Blocks = [0,0; 1,0; 2,0; 3,0]; Color = Cyan }
+    { Name = "O"; Blocks = [0,0; 1,0; 0,1; 1,1]; Color = Yellow }
+    { Name = "T"; Blocks = [0,0; 1,0; 2,0; 1,1]; Color = Purple }
+    { Name = "S"; Blocks = [1,0; 2,0; 0,1; 1,1]; Color = Green }
+    { Name = "Z"; Blocks = [0,0; 1,0; 1,1; 2,1]; Color = Red }
+    { Name = "J"; Blocks = [0,0; 0,1; 1,1; 2,1]; Color = Blue }
+    { Name = "L"; Blocks = [2,0; 0,1; 1,1; 2,1]; Color = Orange }
 ]
 
 let printTetrimino (tetrimino: Tetrimino) =
@@ -97,9 +97,9 @@ let drawGameInfo (state: GameState) =
     printf "%s" (colorToAnsi state.nextPiece.Color)
     
     let minX = state.nextPiece.Blocks |> List.map fst |> List.min
-    let maxX = state.nextPiece.Blocks |> List.map fst |> List.max
+    let maxX = 4 
     let minY = state.nextPiece.Blocks |> List.map snd |> List.min
-    let maxY = state.nextPiece.Blocks |> List.map snd |> List.max
+    let maxY = 2
     
     for y in minY .. maxY do
         for x in minX .. maxX do
@@ -146,11 +146,57 @@ let drawGameState (state: GameState) =
     drawBoard state
     drawGameInfo state
     System.Console.Out.Flush()
+
+// collision hadngling
+let collides (board: Board) (piece: Tetrimino) (row, col) =
+    piece.Blocks 
+    |> List.exists (fun (blockX, blockY) -> 
+        let x = blockX + col
+        let y = blockY + row
+        
+        x < 0 || x >= Array2D.length2 board || 
+        y >= Array2D.length1 board || 
+        y >= 0 && 
+         match board.[y, x] with
+          | Empty -> false
+          | Filled _ -> true
+    )
+
+let tick (state: GameState) =
+    let currx, curry = state.currentPosition
+    let newPos = currx, curry + 1
+    if collides state.board state.currentPiece newPos then
+        let newPiece = state.nextPiece
+        let newNextPiece = randomTetrimino state.rng
+
+        let updatedBoard = 
+            state.currentPiece.Blocks
+            |> List.fold (fun board (blockX, blockY) ->
+                let x = blockX + currx
+                let y = blockY + curry
+                if x >= 0 && x < Array2D.length2 board && y >= 0 && y < Array2D.length1 board then
+                    board.[y, x] <- Filled state.currentPiece.Color
+                board
+            ) state.board       
+
+        let startPosition = (4, 0) // Center top of the board
+        { state with currentPosition = startPosition
+                     currentPiece = newPiece
+                     nextPiece = newNextPiece
+                     board = updatedBoard}
+    else 
+        { state with currentPosition = newPos }    
+
 let rec gameLoop (state: GameState) = 
-    drawGameState state
-    
-    System.Threading.Thread.Sleep(400)
-    gameLoop state
+    if state.gameOver then
+        System.Console.SetCursorPosition(0, Array2D.length1 state.board + 10)
+        printfn "Game Over! Final Score: %d" state.score
+    else
+        drawGameState state
+        let newState = tick state
+        
+        System.Threading.Thread.Sleep 400
+        gameLoop newState
 
 [<EntryPoint>]
 let main argv =
