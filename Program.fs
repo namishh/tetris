@@ -38,7 +38,6 @@ type GameState = {
     currentPiece: Tetrimino
     currentPosition: (int * int)
     nextPiece: Tetrimino
-    score: int
     level: int
     gameOver: bool
     pieceHeld: Tetrimino option  
@@ -81,19 +80,17 @@ let createGameState(): GameState =
     let rng = System.Random()
     let initialPiece = randomTetrimino rng
     let nextPiece = randomTetrimino rng
-    let heldPiece = Some (randomTetrimino rng)  // Initialize pieceHeld with a random Tetrimino
+    let heldPiece = None  
     let board = emptyBoard()
-    { board = board; rng = rng; currentPiece = initialPiece; lines = 0; currentPosition = (3, 0); nextPiece = nextPiece; score = 0; level = 1; gameOver = false; pieceHeld = heldPiece }
+    { board = board; rng = rng; currentPiece = initialPiece; lines = 0; currentPosition = (3, 0); nextPiece = nextPiece; level = 1; gameOver = false; pieceHeld = heldPiece }
 
 let drawBoard (state: GameState) =
     let board = state.board
     let posX, posY = state.currentPosition
     
-    printf "┏"
-    for _ in 0 .. (Array2D.length2 board - 1) do
-        printf "━━"
-    printfn "┓"
-    
+    printfn "┏━━ namishh/tetris ━━┓"
+
+
     for y in 0 .. (Array2D.length1 board - 1) do
         printf "┃"
         for x in 0 .. (Array2D.length2 board - 1) do
@@ -129,7 +126,7 @@ let pieceDisplayLines (piece: Tetrimino) =
 
 let drawBox title content x y =
     System.Console.SetCursorPosition(x, y)
-    printfn "┏━━%s━━┓" title
+    printfn "┏━ %s ━┓" title
     for line in content do
         System.Console.SetCursorPosition(x, System.Console.CursorTop)
         printf "┃%s ┃" line
@@ -161,10 +158,6 @@ let drawGameState (state: GameState) =
     let levelY = linesY + 3  
     let levelContent = [sprintf "%-8d" state.level]
     drawBox "level" levelContent infoX levelY
-
-    let scoreY = levelY + 3  
-    let scoreContent = [sprintf "%-8d" state.score]
-    drawBox "score" scoreContent infoX scoreY
 
     System.Console.Out.Flush()
 
@@ -210,7 +203,7 @@ let tick (state: GameState) =
 let rec gameLoop (state: GameState) = 
     if state.gameOver then
         System.Console.SetCursorPosition(0, Array2D.length1 state.board + 10)
-        printfn "Game Over! Final Score: %d" state.score
+        printfn "Game Over! Lines Cleared: %d" state.lines
     else
         drawGameState state
         let newState = tick state
